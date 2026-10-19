@@ -1,0 +1,14 @@
+{"v":1,"id":["01M5A41PNGBYFW28TSWGVTF7GT",null],"init.workspace":{"id":"01M5A41PNFYVHZPGHCKW7N1DM8","name":"Workspace","rank":"7fffffffffffffffffffffff"}}
+{"v":1,"id":["01M5A41PNHWY3Y2Z9972JPSHS8","01M5A41PNGBYFW28TSWGVTF7GT"],"create.contributor":{"id":"01M1YM7Q4CWAVRDF0BTT592F8C","name":"tcrypt"}}
+{"v":1,"id":["01M5A41PNJ3NNDTPF6K3TKYMPG","01M5A41PNHWY3Y2Z9972JPSHS8"],"add.board":{"id":"01M5A41PNFYVHZPGHCKW7N1DM9","name":"Default","parent":"01M5A41PNFYVHZPGHCKW7N1DM8","rank":"7fffffffffffffffffffffff"}}
+{"v":1,"id":["01M5A41PNKE85K19AEPDZ2YYZY","01M5A41PNJ3NNDTPF6K3TKYMPG"],"add.swimlane":{"id":"01M5A41PNFYVHZPGHCKW7N1DMD","name":"Todo","parent":"01M5A41PNFYVHZPGHCKW7N1DM9","rank":"7fffffffffffffffffffffff"}}
+{"v":1,"id":["01M5A41PNM32QY8V57V3DM0TKB","01M5A41PNKE85K19AEPDZ2YYZY"],"add.swimlane":{"id":"01M5A41PNFYVHZPGHCKW7N1DME","name":"In progress","parent":"01M5A41PNFYVHZPGHCKW7N1DM9","rank":"bfffffffffffffffffffffff"}}
+{"v":1,"id":["01M5A41PNN2GJJFAKNCK7VKNZ1","01M5A41PNM32QY8V57V3DM0TKB"],"add.swimlane":{"id":"01M5A41PNFYVHZPGHCKW7N1DMF","name":"Done","parent":"01M5A41PNFYVHZPGHCKW7N1DM9","rank":"dfffffffffffffffffffffff"}}
+{"v":1,"id":["01M5A41PNPYWR229EW1WC2J35R","01M5A41PNN2GJJFAKNCK7VKNZ1"],"add.board":{"id":"00JR3R8E00A1Z4X9FGP9DV0SM5","name":"Closed","parent":"01M5A41PNFYVHZPGHCKW7N1DM8","rank":"bfffffffffffffffffffffff"}}
+{"v":1,"id":["01M5A41PNQC6VTXPD92A0HBZQ7","01M5A41PNPYWR229EW1WC2J35R"],"add.swimlane":{"id":"00KM6CZ900T7180RM46K0JAYNF","name":"Closed","parent":"00JR3R8E00A1Z4X9FGP9DV0SM5","rank":"7fffffffffffffffffffffff"}}
+{"v":1,"id":["01M5A41PNR0D14YMHSPC89ZMCZ","01M5A41PNQC6VTXPD92A0HBZQ7"],"lock.node":{"id":"00JR3R8E00A1Z4X9FGP9DV0SM5"}}
+{"v":1,"id":["01M5A41PNSM5XWXPYM53R5JCXV","01M5A41PNR0D14YMHSPC89ZMCZ"],"add.board":{"id":"01M5A41PNFYVHZPGHCKW7N1DMA","name":"Ideas","parent":"01M5A41PNFYVHZPGHCKW7N1DM8","rank":"dfffffffffffffffffffffff"}}
+{"v":1,"id":["01M5A41PNTVFA3WTH4SZGXEMDB","01M5A41PNSM5XWXPYM53R5JCXV"],"add.swimlane":{"id":"01M5A41PNFYVHZPGHCKW7N1DMB","name":"Inbox","parent":"01M5A41PNFYVHZPGHCKW7N1DMA","rank":"7fffffffffffffffffffffff"}}
+{"v":1,"id":["01M5A41PNV7KXCFJEE0PPC61PZ","01M5A41PNTVFA3WTH4SZGXEMDB"],"add.issue":{"id":"01M5A41PNFYVHZPGHCKW7N1DMC","name":"Capture ideas here","parent":"01M5A41PNFYVHZPGHCKW7N1DMB","rank":"7fffffffffffffffffffffff"}}
+{"v":1,"id":["01M5A41PNWG9NGKTACK3VNQ2B5","01M5A41PNV7KXCFJEE0PPC61PZ"],"edit.description":{"id":"01M5A41PNFYVHZPGHCKW7N1DMC","md":"Anything worth remembering before it has a plan. Triage it onto a working board when it does."}}
+{"v":1,"id":["01M5A41PNXJGM6Q6DEJDM26YC9","01M5A41PNWG9NGKTACK3VNQ2B5"],"lock.node":{"id":"00KM6CZ900T7180RM46K0JAYNF"}}
