@@ -85,6 +85,15 @@ func Builtin() []Rule {
 		{Name: "premiere", Exe: []string{"adobe premiere pro"}, Action: ActionTrack, Builtin: true},
 		{Name: "after-effects", Exe: []string{"afterfx"}, Action: ActionTrack, Builtin: true},
 		{Name: "kdenlive", Exe: []string{"kdenlive"}, Action: ActionTrack, Builtin: true},
+		// The Linux desktop itself. nvidia-smi lists only compute processes, so
+		// these never appeared there; amdgpu reports every DRM client, and the
+		// compositor and its shell hold memory all day. Track them so they are
+		// named rather than reported as stowaways — they are never drained.
+		{Name: "linux-desktop", Exe: []string{
+			"hyprland", "xwayland", "xorg", "quickshell", "gnome-shell", "mutter",
+			"kwin_wayland", "kwin_x11", "plasmashell", "sway", "wayfire", "labwc",
+			"river", "weston", "cage",
+		}, Action: ActionTrack, Builtin: true},
 	}
 }
 

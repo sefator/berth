@@ -1,6 +1,8 @@
 // Package gpu reads what the card reports: total, used and free memory, and
-// the compute processes holding it. It shells out to nvidia-smi, which talks
-// to NVML and never opens a CUDA context, so probing costs no VRAM.
+// the processes holding it. Two probes implement Probe: NvidiaSMI shells out to
+// nvidia-smi (NVML, no CUDA context) and AMDProbe reads amdgpu's sysfs figures
+// plus /proc/<pid>/fdinfo. Neither opens a driver handle, so probing costs no
+// VRAM. Detect picks one from the card the kernel exposes.
 package gpu
 
 import (

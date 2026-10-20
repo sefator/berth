@@ -111,7 +111,8 @@ shows up as a stowaway: Berth reports its PID and memory and leaves it running.
 - Every command takes `--format json|yaml`, keeps results on stdout and diagnostics on stderr,
   and exits 0, 1 or 2 by one rule.
 
-**Runs on** Linux with an NVIDIA GPU (supported) and Windows 10/11 with an NVIDIA GPU
+**Runs on** Linux with an NVIDIA GPU (supported), Linux with an AMD GPU through amdgpu
+(sysfs + fdinfo) and Windows 10/11 with an NVIDIA GPU
 (experimental). Apache-2.0.
 
 ## Quick start
@@ -671,8 +672,26 @@ drain_slots = "http://127.0.0.1:8080"
 |---|---|
 | Linux + NVIDIA | Supported |
 | Windows 10/11 + NVIDIA | Experimental: leases, process attribution, job-object drains and game claims work; no installer yet, and the driver reports no per-process memory under WDDM, so use whole-card leases |
-| AMD, Intel, Apple | Not supported yet (the telemetry layer is an interface for later backends) |
+| Linux + AMD (amdgpu) | Supported: sysfs for the card, /proc/<pid>/fdinfo for per-process VRAM |
+| Intel, Apple | Not supported yet (the telemetry layer is an interface for later backends) |
 | Multiple GPUs | Inventoried with real limits; leases schedule one card per daemon today |
+
+### On an AMD card (amdgpu)
+
+Berth reads the card through sysfs and attributes memory to processes through
+`/proc/<pid>/fdinfo`, so it needs no `rocm-smi`, no ROCm runtime and no C
+toolchain — the same single binary as on NVIDIA.
+
+- `--gpu N` is the Nth **AMD** GPU (0 = the first), the ordinal `nvidia-smi`
+  uses. The kernel's `cardN` also numbers cards that are not GPUs, so it is not
+  exposed.
+- `nvidia-smi` lists only **compute** processes; fdinfo lists every DRM client,
+  so the compositor, browsers and editors show up too. The built-in pack tracks
+  the desktop (`linux-desktop`: Hyprland, Xwayland, GNOME, KDE, sway, ...); add
+  `[[claim]] action = "track"` for anything else you keep open, or it is
+  reported as a stowaway.
+- Fan speed is converted from RPM with the card's own maximum; telemetry the
+  driver does not publish reads -1, never 0.
 
 ---
 

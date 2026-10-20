@@ -4,7 +4,8 @@ Berth is the VRAM leasing service for every GPU you run. One Go daemon per machi
 hands a single card to many inference engines in turn: engines lease the card,
 the holder is drained, Berth waits until the driver reports the memory free, then
 admits the next engine. Processes holding VRAM without a lease are stowaways,
-reported, never touched. Linux + NVIDIA. Alpha.
+reported, never touched. Linux: NVIDIA through nvidia-smi, AMD through amdgpu
+sysfs + fdinfo (Windows 10/11 + NVIDIA is experimental). Alpha.
 
 ## Commands
 

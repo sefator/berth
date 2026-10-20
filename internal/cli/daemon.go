@@ -79,7 +79,20 @@ func runDaemon(c *Context) int {
 	log.Debug("config", "path", *cfgPath, "engines", len(cfg.Engine), "discover", *cfg.Engines.Discover,
 		"metrics", cfg.Metrics.Listen, "juggle_window", cfg.Priority.JuggleWindow.String())
 
-	probe := &gpu.Stream{Index: *index, Interval: *poll}
+	// Pick the probe from the card the kernel exposes: nvidia-smi on NVIDIA,
+	// sysfs + fdinfo on amdgpu. Both satisfy gpu.Probe; Run keeps each one's
+	// background loop (nvidia-smi --loop, or nothing on AMD).
+	var probe gpu.Probe
+	var run func(context.Context)
+	if gpu.Detect("") == "amd" {
+		st := &gpu.AMDStream{Index: *index, Interval: *poll}
+		probe, run = st, st.Run
+		log.Info("gpu backend", "vendor", "amd", "probe", "sysfs+fdinfo")
+	} else {
+		st := &gpu.Stream{Index: *index, Interval: *poll}
+		probe, run = st, st.Run
+		log.Info("gpu backend", "vendor", "nvidia", "probe", "nvidia-smi")
+	}
 	rep := server.Reporter{Notify: *notify, Webhook: *webhook, Log: log}
 	// The engine readers exist before the broker: a juggle asks them whether
 	// the holder is busy. They start reading below, once the card is known.
@@ -129,7 +142,7 @@ func runDaemon(c *Context) int {
 	// refuse to schedule a card that does not exist.
 	snap, err := probe.Read(ctx)
 	if errors.Is(err, exec.ErrNotFound) {
-		return c.fail(Systemf("nvidia-smi not found: Berth needs an NVIDIA driver (Linux + NVIDIA is the supported platform)"))
+		return c.fail(Systemf("no GPU found: Berth needs an NVIDIA driver (nvidia-smi) or an AMD card with amdgpu"))
 	} else if err != nil {
 		return c.fail(Systemf("gpu inventory: %v", err))
 	}
@@ -143,7 +156,7 @@ func runDaemon(c *Context) int {
 	}
 	defer os.Remove(*sock)
 	log.Info("berthd up", "version", c.Version, "socket", *sock, "gpu", *index)
-	go probe.Run(ctx)
+	go run(ctx)
 	go b.Run(ctx)
 	// Claims: games and apps Berth does not run hold the card or have their
 	// memory named, from the process table. Validate already compiled them.
