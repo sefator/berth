@@ -505,7 +505,7 @@ func TestSlotsFailOpenKinds(t *testing.T) {
 		http.Error(w, "wedged", http.StatusInternalServerError)
 	}))
 	defer sick.Close()
-	if _, err := slotsBusy(sick.URL); err == nil || failOpen(err) {
+	if _, err := slotsBusy(sick.URL, ""); err == nil || failOpen(err) {
 		t.Fatalf("500 should wait, got %v", err)
 	}
 
@@ -513,7 +513,7 @@ func TestSlotsFailOpenKinds(t *testing.T) {
 		http.NotFound(w, r)
 	}))
 	defer missing.Close()
-	if _, err := slotsBusy(missing.URL); err == nil || !failOpen(err) {
+	if _, err := slotsBusy(missing.URL, ""); err == nil || !failOpen(err) {
 		t.Fatalf("404 should fail open, got %v", err)
 	}
 
@@ -521,14 +521,14 @@ func TestSlotsFailOpenKinds(t *testing.T) {
 		fmt.Fprint(w, `not json`)
 	}))
 	defer garbage.Close()
-	if _, err := slotsBusy(garbage.URL); err == nil || !failOpen(err) {
+	if _, err := slotsBusy(garbage.URL, ""); err == nil || !failOpen(err) {
 		t.Fatalf("bad JSON should fail open, got %v", err)
 	}
 
 	dead := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	deadURL := dead.URL
 	dead.Close()
-	if _, err := slotsBusy(deadURL); err == nil || !failOpen(err) {
+	if _, err := slotsBusy(deadURL, ""); err == nil || !failOpen(err) {
 		t.Fatalf("unreachable should fail open, got %v", err)
 	}
 

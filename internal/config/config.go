@@ -55,6 +55,9 @@ type Engine struct {
 	DrainPost    string `toml:"drain_post,omitempty" json:"drain_post,omitempty" yaml:"drain_post,omitempty"`          // as berth run --drain-post
 	DrainSlots   string `toml:"drain_slots,omitempty" json:"drain_slots,omitempty" yaml:"drain_slots,omitempty"`       // as berth run --drain-slots
 	DrainComfyUI string `toml:"drain_comfyui,omitempty" json:"drain_comfyui,omitempty" yaml:"drain_comfyui,omitempty"` // as berth run --drain-comfyui
+	// DrainTokenEnv names the environment variable holding the bearer token for
+	// the drain URLs (an engine behind an API key).
+	DrainTokenEnv string `toml:"drain_token_env,omitempty" json:"drain_token_env,omitempty" yaml:"drain_token_env,omitempty"` // as berth run --drain-token-env
 	// KeepComfyUI is berth run --keep-comfyui-up: unload and stay up.
 	KeepComfyUI bool `toml:"keep_comfyui_up,omitempty" json:"keep_comfyui_up,omitempty" yaml:"keep_comfyui_up,omitempty"`
 	// GUI is the engine's web UI as a browser reaches it. With start set, the

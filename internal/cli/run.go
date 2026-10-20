@@ -24,6 +24,7 @@ func runRun(c *Context) int {
 	drainPost := fs.String("drain-post", "", "URL to POST when asked to drain, before signalling (e.g. llama-swap's unload)")
 	drainSlots := fs.String("drain-slots", "", "engine base URL whose /slots must show idle before a drain stops it (an engine with no unload URL, e.g. Strata)")
 	drainComfy := fs.String("drain-comfyui", "", "ComfyUI base URL: on drain, wait until its queue is empty before stopping it (never cuts a job off)")
+	drainToken := fs.String("drain-token-env", "", "environment variable holding a bearer token for the drain URLs (an engine behind an API key)")
 	keepComfy := fs.Bool("keep-comfyui-up", false, "with --drain-comfyui: unload its models via POST /free and leave the server up instead of stopping it")
 	grace := fs.Duration("grace", 30*time.Second, "time each drain step gets before the next")
 	failClosed := fs.Bool("fail-closed", false, "do not start CMD when berthd is unreachable")
@@ -44,7 +45,7 @@ func runRun(c *Context) int {
 		return c.fail(Failf("config invalid: %s", *cfgPath).Detail("%v", err))
 	}
 	if e := engineEntry(merged, *engine, *group); e != nil {
-		applyEngineEntry(c, e, prio, needs, drainPost, drainSlots, drainComfy, keepComfy)
+		applyEngineEntry(c, e, prio, needs, drainPost, drainSlots, drainComfy, drainToken, keepComfy)
 	}
 	if _, err := broker.ParsePriority(*prio); err != nil {
 		return c.fail(Systemf("%v", err))
@@ -56,7 +57,8 @@ func runRun(c *Context) int {
 	// diagnostics on stderr, and --quiet never hides the unprotected warning.
 	return runner.Run(runner.Options{
 		Socket: *sock, Engine: *engine, Group: *group, Priority: *prio, Needs: *needs * gpu.MiB, Wait: *wait, Pinned: *pinned,
-		DrainPost: *drainPost, DrainSlots: *drainSlots, DrainComfyUI: *drainComfy, KeepComfyUI: *keepComfy, Grace: *grace,
+		DrainPost: *drainPost, DrainSlots: *drainSlots, DrainComfyUI: *drainComfy, DrainTokenEnv: *drainToken,
+		KeepComfyUI: *keepComfy, Grace: *grace,
 		FailClosed: *failClosed, Argv: c.Args, Stderr: c.Err,
 	})
 }
@@ -82,7 +84,7 @@ func engineEntry(cfg config.Config, as, group string) *config.Engine {
 // engine's berth.toml entry, and names every flag that overrides the entry,
 // in the file's key and value.
 func applyEngineEntry(c *Context, e *config.Engine,
-	prio *string, needs *uint64, drainPost, drainSlots, drainComfy *string, keepComfy *bool) {
+	prio *string, needs *uint64, drainPost, drainSlots, drainComfy, drainToken *string, keepComfy *bool) {
 	notice := func(flag, key, toml string) {
 		fmt.Fprintf(c.Err, "berth: --%s overrides berth.toml %s = %s for %s\n", flag, key, toml, e.Name)
 	}
@@ -106,6 +108,7 @@ func applyEngineEntry(c *Context, e *config.Engine,
 		{"drain-post", "drain_post", e.DrainPost, drainPost},
 		{"drain-slots", "drain_slots", e.DrainSlots, drainSlots},
 		{"drain-comfyui", "drain_comfyui", e.DrainComfyUI, drainComfy},
+		{"drain-token-env", "drain_token_env", e.DrainTokenEnv, drainToken},
 	}
 	for _, d := range drains {
 		if !c.Changed(d.flag) && d.toml != "" {

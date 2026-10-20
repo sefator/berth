@@ -44,6 +44,10 @@ type Options struct {
 	// has nothing running or pending before any stop step, so a job is
 	// never cut off. There is no time limit; a job ends when it ends.
 	DrainComfyUI string
+	// DrainTokenEnv names the environment variable holding the bearer token
+	// sent with the drain reads (/slots, /queue, /free), for an engine behind
+	// an API key — Strata, or a ComfyUI behind a proxy. Empty sends no header.
+	DrainTokenEnv string
 	// KeepComfyUI leaves a drained ComfyUI running: after the queue empties
 	// its models are unloaded via POST /free (VRAM frees while the server
 	// and port stay up for OpenWebUI) and the lease is handed back without
@@ -228,7 +232,7 @@ func jobBoundary(o Options, done <-chan struct{}, say func(string, ...any)) bool
 	url := strings.TrimRight(o.DrainComfyUI, "/") + "/queue"
 	last := ""
 	for {
-		running, pending, err := comfyQueue(url)
+		running, pending, err := comfyQueue(url, o.drainToken())
 		var now string
 		switch {
 		case err != nil:
@@ -251,10 +255,11 @@ func jobBoundary(o Options, done <-chan struct{}, say func(string, ...any)) bool
 	}
 }
 
-func comfyQueue(url string) (running, pending int, err error) {
+func comfyQueue(url, token string) (running, pending int, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	setDrainAuth(req, token)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, 0, err
@@ -276,7 +281,7 @@ func comfyQueue(url string) (running, pending int, err error) {
 // comfyFree asks a drained ComfyUI to unload its models and free VRAM while
 // staying up, so OpenWebUI keeps answering on its port. The /free shape is
 // ComfyUI's own: unload_models plus free_memory.
-func comfyFree(base string) error {
+func comfyFree(base, token string) error {
 	body := strings.NewReader(`{"unload_models":true,"free_memory":true}`)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -285,6 +290,7 @@ func comfyFree(base string) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	setDrainAuth(req, token)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
@@ -305,7 +311,7 @@ const comfyIdleFootprint = 2 << 30
 // comfyUnloaded polls ComfyUI's stats until the device shows all but the
 // idle footprint free. Unreadable stats fail open: older servers answer no
 // /system_stats and a failed unload already fell back to stopping.
-func comfyUnloaded(base string, within time.Duration) bool {
+func comfyUnloaded(base, token string, within time.Duration) bool {
 	deadline := time.Now().Add(within)
 	every := 500 * time.Millisecond
 	if within/4 < every {
@@ -315,7 +321,7 @@ func comfyUnloaded(base string, within time.Duration) bool {
 		every = 20 * time.Millisecond
 	}
 	for {
-		free, total, err := comfyVRAM(base)
+		free, total, err := comfyVRAM(base, token)
 		if err != nil || free+comfyIdleFootprint >= total {
 			return true
 		}
@@ -327,13 +333,14 @@ func comfyUnloaded(base string, within time.Duration) bool {
 }
 
 // comfyVRAM reads ComfyUI's device 0 (vram_free, vram_total) in bytes.
-func comfyVRAM(base string) (free, total uint64, err error) {
+func comfyVRAM(base, token string) (free, total uint64, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/")+"/system_stats", nil)
 	if err != nil {
 		return 0, 0, err
 	}
+	setDrainAuth(req, token)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, 0, err
@@ -378,7 +385,7 @@ func slotBoundaryAt(o Options, base string, done <-chan struct{}, say func(strin
 		every = 2 * time.Second
 	}
 	url := base + "/slots"
-	if busy, err := slotsBusy(url); err != nil {
+	if busy, err := slotsBusy(url, o.drainToken()); err != nil {
 		if failOpen(err) {
 			say("drain: no slot boundary at %s (%v); unloading anyway", url, err)
 			return true
@@ -395,7 +402,7 @@ func slotBoundaryAt(o Options, base string, done <-chan struct{}, say func(strin
 			return false
 		case <-time.After(every):
 		}
-		busy, err := slotsBusy(url)
+		busy, err := slotsBusy(url, o.drainToken())
 		if err != nil {
 			say("drain: lost the slot boundary (%v); waiting", err)
 			continue
@@ -404,6 +411,23 @@ func slotBoundaryAt(o Options, base string, done <-chan struct{}, say func(strin
 			say("engine idle; unloading")
 			return true
 		}
+	}
+}
+
+// drainToken is the bearer token the drain URLs use, read from the environment
+// variable DrainTokenEnv names so a key stays out of the config file and the
+// command line.
+func (o Options) drainToken() string {
+	if o.DrainTokenEnv == "" {
+		return ""
+	}
+	return os.Getenv(o.DrainTokenEnv)
+}
+
+// setDrainAuth adds that token, when there is one.
+func setDrainAuth(req *http.Request, token string) {
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 }
 
@@ -463,13 +487,14 @@ func slotsTimeout(err error) bool {
 // is_processing bool, the same rule the engine reader uses. Failures come
 // back as a *slotsErr so the caller can tell "no boundary" from "sick
 // boundary" (see failOpen).
-func slotsBusy(url string) (bool, error) {
+func slotsBusy(url, token string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return false, &slotsErr{err: err}
 	}
+	setDrainAuth(req, token)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return false, &slotsErr{timeout: slotsTimeout(err), err: err}
@@ -562,10 +587,10 @@ func drain(o Options, cmd *exec.Cmd, done <-chan struct{}, released chan<- struc
 		// once the driver shows the memory actually left: the run record
 		// written below tells the broker the lingering server no longer
 		// holds the card.
-		if err := comfyFree(o.DrainComfyUI); err != nil {
+		if err := comfyFree(o.DrainComfyUI, o.drainToken()); err != nil {
 			say("ComfyUI unload (%v); stopping the server instead", err)
 		} else if o.KeepComfyUI {
-			if unloadWait := 2 * o.Grace; !comfyUnloaded(o.DrainComfyUI, unloadWait) {
+			if unloadWait := 2 * o.Grace; !comfyUnloaded(o.DrainComfyUI, o.drainToken(), unloadWait) {
 				say("ComfyUI memory did not free within %s; stopping the server instead", unloadWait)
 			} else {
 				say("ComfyUI models unloaded; leaving the server up")
