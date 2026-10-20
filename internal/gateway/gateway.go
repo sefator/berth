@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"slices"
 	"sort"
 	"strings"
@@ -218,6 +219,20 @@ func (g *Gateway) nodeStatus() *proto.Status {
 	return m.Status
 }
 
+// tokenFor is the bearer token an engine's api_key_env names, matched by URL.
+// The client authenticates to the gateway with the gateway's key; the gateway
+// authenticates to the engine with the engine's, so a keyed engine (Strata
+// served with api_key) is readable and proxied like a keyless one.
+func (g *Gateway) tokenFor(base string) string {
+	base = strings.TrimRight(base, "/")
+	for i := range g.Engines {
+		if strings.TrimRight(g.Engines[i].URL, "/") == base && g.Engines[i].APIKeyEnv != "" {
+			return os.Getenv(g.Engines[i].APIKeyEnv)
+		}
+	}
+	return ""
+}
+
 // listed is what an engine's own /v1/models says it can serve. llama-swap and
 // Ollama list every model they can load, not only the loaded ones, which is
 // what lets them answer for a cold model themselves.
@@ -231,6 +246,9 @@ func (g *Gateway) listed(ctx context.Context, base string) []string {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/")+"/v1/models", nil)
 	if err != nil {
 		return nil
+	}
+	if tok := g.tokenFor(base); tok != "" {
+		req.Header.Set("Authorization", "Bearer "+tok)
 	}
 	resp, err := g.client().Do(req)
 	if err != nil {
@@ -393,6 +411,10 @@ func (g *Gateway) forward(w http.ResponseWriter, r *http.Request) {
 	r.Body = io.NopCloser(bytes.NewReader(body))
 	r.ContentLength = int64(len(body))
 	r.Host = u.Host
+	// The client used the gateway's key; the engine wants its own.
+	if tok := g.tokenFor(t.url); tok != "" {
+		r.Header.Set("Authorization", "Bearer "+tok)
+	}
 	p.ServeHTTP(w, r)
 }
 
@@ -484,6 +506,9 @@ func (g *Gateway) comfyProxyTo(base string, w http.ResponseWriter, r *http.Reque
 	p := httputil.NewSingleHostReverseProxy(u)
 	p.FlushInterval = -1 // stream progress as ComfyUI sends it
 	r.Host = u.Host
+	if tok := g.tokenFor(base); tok != "" {
+		r.Header.Set("Authorization", "Bearer "+tok)
+	}
 	p.ServeHTTP(w, r)
 }
 
@@ -610,6 +635,10 @@ func (g *Gateway) answers(ctx context.Context, base string) bool {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/")+"/v1/models", nil)
 	if err != nil {
 		return false
+	}
+	// A keyed engine answers 401 without its key, which is not "ready".
+	if tok := g.tokenFor(base); tok != "" {
+		req.Header.Set("Authorization", "Bearer "+tok)
 	}
 	resp, err := g.client().Do(req)
 	if err != nil {
