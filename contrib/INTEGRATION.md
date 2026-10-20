@@ -17,13 +17,21 @@ the engine to the new daemon within a few seconds.
 
 ```sh
 berth run --as <name> --priority <batch|interactive|foreground> [--needs-mib N] \
-  [--drain-post URL] [--drain-comfyui URL] [--wait 10m] -- <the engine's own command>
+  [--drain-post URL] [--drain-slots URL] [--drain-token-env ENV] \
+  [--drain-comfyui URL] [--wait 10m] -- <the engine's own command>
 ```
 
 - `--priority`: an equal or higher request drains the holder; a lower one waits.
 - `--needs-mib`: leave it out to take the whole card. Set it when engines can share the card
   (for example vLLM with `--gpu-memory-utilization`).
 - `--drain-post`: a URL Berth POSTs first when it wants the card back, before any signal.
+- `--drain-slots`: a base URL whose llama.cpp-style `/slots` must show idle before the drain
+  stops the engine (for an engine with no unload URL, e.g. Strata).
+- `--drain-token-env`: the environment variable holding a bearer token for the drain reads
+  (`/slots`, `/queue`, `/free`), for an engine behind an API key — Strata served with
+  `api_key`, or a ComfyUI behind a proxy. The key stays out of berth.toml and the command
+  line. Without it a 401 is not a fail-open status, so the drain waits instead of cutting a
+  request off.
 - `--drain-comfyui`: wait for ComfyUI's queue to empty before stopping it.
 - On drain, Berth tries the drain step, then SIGTERM to the engine's process group, then
   SIGKILL, with `--grace` (30 s) between steps.
