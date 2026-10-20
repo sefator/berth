@@ -620,8 +620,8 @@ func (g *Gateway) run(e *config.Engine, s *started, wait time.Duration) {
 	s.code = runner.Run(runner.Options{
 		Socket: g.Socket, Engine: e.Name, Priority: prio, Needs: e.NeedsMiB << 20,
 		Wait: wait, DrainPost: e.DrainPost, DrainSlots: e.DrainSlots, DrainComfyUI: e.DrainComfyUI,
-		KeepComfyUI: e.KeepComfyUI,
-		Grace:       30 * time.Second, Argv: e.Start, Stderr: s.stderr,
+		DrainTokenEnv: e.DrainTokenEnv, KeepComfyUI: e.KeepComfyUI,
+		Grace: 30 * time.Second, Argv: e.Start, Stderr: s.stderr,
 	})
 	g.log().Info("gateway engine exited", "engine", e.Name, "code", s.code)
 	g.mu.Lock()
